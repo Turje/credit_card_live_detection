@@ -70,8 +70,25 @@ def convert_coco_to_yolo(dataset_path: str):
     from pathlib import Path
     
     dataset_path = Path(dataset_path)
-    train_dir = dataset_path / "train"
-    ann_file = train_dir / "_annotations.coco.json"
+    
+    # Determine if dataset_path is the base directory or already the train directory
+    # Check if annotation file exists directly (dataset_path is train directory)
+    ann_file = dataset_path / "_annotations.coco.json"
+    if ann_file.exists():
+        train_dir = dataset_path
+        base_dir = dataset_path.parent
+    else:
+        # Check if it's in train subdirectory (dataset_path is base directory)
+        train_dir = dataset_path / "train"
+        ann_file = train_dir / "_annotations.coco.json"
+        base_dir = dataset_path
+    
+    if not ann_file.exists():
+        raise FileNotFoundError(
+            f"Annotation file not found. Checked:\n"
+            f"  - {dataset_path / '_annotations.coco.json'}\n"
+            f"  - {dataset_path / 'train' / '_annotations.coco.json'}"
+        )
     
     # Load COCO annotations
     with open(ann_file, 'r') as f:
@@ -81,8 +98,8 @@ def convert_coco_to_yolo(dataset_path: str):
     categories = {cat['id']: cat for cat in coco_data['categories']}
     
     # Create YOLO directory structure
-    yolo_train = dataset_path / "train" / "images"
-    yolo_labels = dataset_path / "train" / "labels"
+    yolo_train = train_dir / "images"
+    yolo_labels = train_dir / "labels"
     yolo_train.mkdir(parents=True, exist_ok=True)
     yolo_labels.mkdir(parents=True, exist_ok=True)
     
