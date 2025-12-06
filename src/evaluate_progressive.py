@@ -21,6 +21,9 @@ def evaluate_model_on_test_set(model_path: str, test_dataset_path: str):
     Returns:
         Dictionary with metrics
     """
+    import yaml
+    import tempfile
+    
     model = YOLO(model_path)
     test_path = Path(test_dataset_path)
     
@@ -36,16 +39,48 @@ def evaluate_model_on_test_set(model_path: str, test_dataset_path: str):
             f"  - {test_path / '_annotations.coco.json'}"
         )
     
-    # Run validation
-    results = model.val(
-        data=str(ann_file),
-        imgsz=640,
-        conf=0.25,
-        iou=0.45,
-        save_json=True,
-        project="outputs/evaluation",
-        name=test_path.name
-    )
+    # Load COCO annotations to get class names
+    with open(ann_file, 'r') as f:
+        coco_data = json.load(f)
+    
+    categories = coco_data.get('categories', [])
+    class_names = [cat['name'] for cat in sorted(categories, key=lambda x: x['id'])]
+    
+    # Create temporary YOLO dataset config
+    # Find images directory
+    images_dir = test_path / "train"
+    if not images_dir.exists():
+        images_dir = test_path
+    
+    # Create YOLO config
+    yolo_config = {
+        'path': str(test_path.absolute()),
+        'train': 'train',  # Relative to path
+        'val': 'train',    # Use train for validation (it's a test set)
+        'test': 'train',
+        'names': {i: name for i, name in enumerate(class_names)},
+        'nc': len(class_names)
+    }
+    
+    # Save to temporary file
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
+        yaml.dump(yolo_config, f, default_flow_style=False)
+        temp_config = f.name
+    
+    try:
+        # Run validation using the config file
+        results = model.val(
+            data=temp_config,
+            imgsz=640,
+            conf=0.25,
+            iou=0.45,
+            save_json=True,
+            project="outputs/evaluation",
+            name=test_path.name
+        )
+    finally:
+        # Clean up temp file
+        Path(temp_config).unlink(missing_ok=True)
     
     metrics = {
         'mAP50': results.box.map50,
