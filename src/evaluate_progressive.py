@@ -112,17 +112,31 @@ def evaluate_progressive(
         print(f"⚠️ Test sets base not found: {test_base}")
         print("Searching for split directory...")
         
-        # Look for directories ending with _split
-        parent_dir = test_base.parent
-        if parent_dir.exists():
-            split_dirs = list(parent_dir.glob("*_split"))
-            if split_dirs:
-                test_base = split_dirs[0]
-                print(f"✅ Found split directory: {test_base}")
-            else:
-                raise FileNotFoundError(f"Could not find split directory in {parent_dir}")
+        # Look for directories ending with _split in multiple locations
+        search_dirs = [
+            test_base.parent,  # datasets/
+            test_base.parent.parent / "datasets",  # MyDrive/credit_card_yolov12/datasets
+            Path("/content/drive/MyDrive/credit_card_yolov12/datasets"),
+        ]
+        
+        found_split = None
+        for search_dir in search_dirs:
+            if search_dir.exists():
+                split_dirs = list(search_dir.glob("*_split"))
+                if split_dirs:
+                    found_split = split_dirs[0]
+                    print(f"✅ Found split directory: {found_split}")
+                    break
+        
+        if found_split:
+            test_base = found_split
         else:
-            raise FileNotFoundError(f"Parent directory does not exist: {parent_dir}")
+            raise FileNotFoundError(
+                f"Could not find split directory. Searched:\n"
+                f"  - {test_base.parent}\n"
+                f"  - {test_base.parent.parent / 'datasets'}\n"
+                f"  - /content/drive/MyDrive/credit_card_yolov12/datasets"
+            )
     
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
