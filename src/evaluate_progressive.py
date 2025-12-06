@@ -8,6 +8,8 @@ import json
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
+import yaml
+import tempfile
 
 
 def evaluate_model_on_test_set(model_path: str, test_dataset_path: str):
@@ -21,9 +23,6 @@ def evaluate_model_on_test_set(model_path: str, test_dataset_path: str):
     Returns:
         Dictionary with metrics
     """
-    import yaml
-    import tempfile
-    
     model = YOLO(model_path)
     test_path = Path(test_dataset_path)
     
