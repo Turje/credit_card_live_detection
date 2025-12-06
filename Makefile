@@ -89,3 +89,58 @@ obscure: ## Create partially obscured dataset (make obscure DATASET=datasets/cre
 	fi
 	python3 src/obscure.py --dataset $(DATASET) --output $(OUTPUT) --type $(TYPE) --ratio $(RATIO)
 
+# Phase 1: Baseline Model Workflow
+split-dataset: ## Split dataset into train/val/test (make split-dataset DATASET=datasets/credit-cards-coco)
+	@if [ -z "$(DATASET)" ]; then \
+		echo "Error: DATASET must be set"; \
+		echo "Example: make split-dataset DATASET=datasets/credit-cards-coco"; \
+		exit 1; \
+	fi
+	python3 src/split_dataset.py --dataset $(DATASET) --seed 42
+
+prepare-progressive-tests: ## Generate progressive occlusion test sets (make prepare-progressive-tests TEST_DATASET=datasets/credit-cards-coco_split/test)
+	@if [ -z "$(TEST_DATASET)" ]; then \
+		echo "Error: TEST_DATASET must be set"; \
+		echo "Example: make prepare-progressive-tests TEST_DATASET=datasets/credit-cards-coco_split/test"; \
+		exit 1; \
+	fi
+	python3 src/prepare_progressive_tests.py --test-dataset $(TEST_DATASET) --type $(or $(OCCLUSION_TYPE),crop) --seed 42
+
+visualize-crops: ## Visualize cropped regions (make visualize-crops ORIGINAL=datasets/credit-cards-coco OCCLUDED=datasets/credit-cards-coco_split/test_occlusion_25)
+	@if [ -z "$(ORIGINAL)" ] || [ -z "$(OCCLUDED)" ]; then \
+		echo "Error: ORIGINAL and OCCLUDED must be set"; \
+		echo "Example: make visualize-crops ORIGINAL=datasets/credit-cards-coco OCCLUDED=datasets/credit-cards-coco_split/test_occlusion_25"; \
+		exit 1; \
+	fi
+	python3 src/visualize_crops.py --original $(ORIGINAL) --occluded $(OCCLUDED) --samples $(or $(SAMPLES),6)
+
+visualize-progressive: ## Visualize progressive occlusion (make visualize-progressive ORIGINAL=datasets/credit-cards-coco_split/test OCC25=... OCC50=... OCC75=...)
+	@if [ -z "$(ORIGINAL)" ] || [ -z "$(OCC25)" ] || [ -z "$(OCC50)" ] || [ -z "$(OCC75)" ]; then \
+		echo "Error: ORIGINAL, OCC25, OCC50, OCC75 must be set"; \
+		echo "Example: make visualize-progressive ORIGINAL=datasets/credit-cards-coco_split/test OCC25=datasets/credit-cards-coco_split/test_occlusion_25 OCC50=datasets/credit-cards-coco_split/test_occlusion_50 OCC75=datasets/credit-cards-coco_split/test_occlusion_75"; \
+		exit 1; \
+	fi
+	python3 src/visualize_progressive.py --original $(ORIGINAL) --occlusion-25 $(OCC25) --occlusion-50 $(OCC50) --occlusion-75 $(OCC75) $(if $(IMAGE),--image $(IMAGE))
+
+train-model: ## Train YOLOv8 model (make train-model DATASET=datasets/credit-cards-coco_split/train MODEL_SIZE=n EPOCHS=100)
+	@if [ -z "$(DATASET)" ]; then \
+		echo "Error: DATASET must be set"; \
+		echo "Example: make train-model DATASET=datasets/credit-cards-coco_split/train MODEL_SIZE=n EPOCHS=100"; \
+		exit 1; \
+	fi
+	python3 src/train.py --dataset $(DATASET) --model-size $(or $(MODEL_SIZE),n) --epochs $(or $(EPOCHS),100) --batch $(or $(BATCH),16)
+
+evaluate-progressive: ## Evaluate model on progressive occlusion (make evaluate-progressive MODEL=models/credit_card_n/weights/best.pt TEST_SETS=datasets/credit-cards-coco_split)
+	@if [ -z "$(MODEL)" ] || [ -z "$(TEST_SETS)" ]; then \
+		echo "Error: MODEL and TEST_SETS must be set"; \
+		echo "Example: make evaluate-progressive MODEL=models/credit_card_n/weights/best.pt TEST_SETS=datasets/credit-cards-coco_split"; \
+		exit 1; \
+	fi
+	python3 src/evaluate_progressive.py --model $(MODEL) --test-sets $(TEST_SETS)
+
+phase1-all: split-dataset prepare-progressive-tests ## Run Phase 1 workflow: split dataset and prepare progressive tests
+	@echo "Phase 1 preparation complete!"
+	@echo "Next steps:"
+	@echo "  1. Train model: make train-model DATASET=datasets/credit-cards-coco_split/train"
+	@echo "  2. Evaluate: make evaluate-progressive MODEL=models/.../best.pt TEST_SETS=datasets/credit-cards-coco_split"
+
