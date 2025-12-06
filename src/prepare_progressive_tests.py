@@ -37,20 +37,50 @@ def generate_progressive_tests(
     # Ensure output_base directory exists
     output_base.mkdir(parents=True, exist_ok=True)
     
-    # Test set with 0% occlusion (original)
-    print("Creating baseline test set (0% occlusion)...")
-    test_0_path = output_base / "test_occlusion_0"
-    test_0_path.mkdir(parents=True, exist_ok=True)
-    (test_0_path / "train").mkdir(parents=True, exist_ok=True)
-    
-    # Copy original test set
+    # Find source directory ONCE (could be test/ or test/train/)
+    # This will be reused for both baseline and occluded test sets
     import shutil
     import json
     
-    # Find source directory (could be test/ or test/train/)
     src_dir = test_path
     if (test_path / "train").exists():
         src_dir = test_path / "train"
+    elif not test_path.exists():
+        # If test_path doesn't exist, try to find it
+        # Maybe it's actually pointing to test/train/ directly
+        if test_path.parent.exists():
+            # Check if parent has train subdirectory
+            parent_train = test_path.parent / "train"
+            if parent_train.exists() and (parent_train / "_annotations.coco.json").exists():
+                src_dir = parent_train
+                print(f"⚠️ Adjusted source directory to: {src_dir}")
+    
+    # Verify source directory exists and has files
+    if not src_dir.exists():
+        raise FileNotFoundError(
+            f"Source directory does not exist: {src_dir}\n"
+            f"Test path: {test_path}\n"
+            f"Test path exists: {test_path.exists()}\n"
+            f"Please check the test dataset path."
+        )
+    
+    # Verify annotation file exists
+    ann_file = src_dir / "_annotations.coco.json"
+    if not ann_file.exists():
+        raise FileNotFoundError(
+            f"Annotation file not found at: {ann_file}\n"
+            f"Source directory: {src_dir}\n"
+            f"Files in source: {list(src_dir.glob('*'))[:10]}"
+        )
+    
+    print(f"✅ Using source directory: {src_dir}")
+    print(f"   Annotation file: {ann_file}")
+    
+    # Test set with 0% occlusion (original)
+    print("\nCreating baseline test set (0% occlusion)...")
+    test_0_path = output_base / "test_occlusion_0"
+    test_0_path.mkdir(parents=True, exist_ok=True)
+    (test_0_path / "train").mkdir(parents=True, exist_ok=True)
     
     # Copy images
     for img_file in src_dir.glob("*.jpg"):
@@ -71,42 +101,35 @@ def generate_progressive_tests(
         
         output_path = output_base / f"test_occlusion_{int(occlusion_ratio*100)}"
         
-        # Find source directory (same logic as baseline - could be test/ or test/train/)
-        src_dir = test_path
+        # Use src_dir that was detected at the beginning (reuse for consistency)
+        # obscure.py expects a structure with train/ subdirectory
+        # Check if we need to create a temporary structure
+        temp_test = None
         if (test_path / "train").exists():
-            src_dir = test_path / "train"
-        
-        # Use test_path directly if it already has train/ subdirectory (obscure.py expects train/)
-        # Otherwise, create a temporary structure
-        temp_test = test_path
-        if not (test_path / "train").exists():
+            # test_path already has train/ subdirectory, use it directly
+            temp_test = test_path
+            print(f"✅ Using existing structure: {temp_test}")
+        else:
             # Create a temporary structure for obscure.py
             temp_test = test_path.parent / f"_temp_{test_path.name}"
             temp_test.mkdir(parents=True, exist_ok=True)
             (temp_test / "train").mkdir(parents=True, exist_ok=True)
+            print(f"✅ Creating temp structure: {temp_test}")
+            
             # Copy files from the detected source directory
+            img_count = 0
             for img_file in src_dir.glob("*.jpg"):
                 shutil.copy2(img_file, temp_test / "train" / img_file.name)
+                img_count += 1
             for img_file in src_dir.glob("*.png"):
                 shutil.copy2(img_file, temp_test / "train" / img_file.name)
-            # Copy annotations from the detected source directory
+                img_count += 1
+            print(f"   Copied {img_count} images")
+            
+            # Copy annotations from the detected source directory (already verified to exist)
             ann_file = src_dir / "_annotations.coco.json"
-            if ann_file.exists():
-                shutil.copy2(ann_file, temp_test / "train" / "_annotations.coco.json")
-                print(f"✅ Copied annotation file to temp directory")
-            else:
-                print(f"⚠️ Warning: Annotation file not found at {ann_file}")
-                print(f"   Source directory: {src_dir}")
-                print(f"   Source exists: {src_dir.exists()}")
-                if src_dir.exists():
-                    print(f"   Files in source: {list(src_dir.glob('*'))}")
-                # Try alternative locations
-                alt_ann_file = test_path / "_annotations.coco.json"
-                if alt_ann_file.exists():
-                    print(f"   Found annotation at alternative location, copying...")
-                    shutil.copy2(alt_ann_file, temp_test / "train" / "_annotations.coco.json")
-                else:
-                    raise FileNotFoundError(f"Annotation file not found at {ann_file} or {alt_ann_file}")
+            shutil.copy2(ann_file, temp_test / "train" / "_annotations.coco.json")
+            print(f"✅ Copied annotation file to temp directory")
         
         # Verify temp_test has the required structure before proceeding
         if not (temp_test / "train" / "_annotations.coco.json").exists():
