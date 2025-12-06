@@ -28,7 +28,61 @@ def generate_progressive_tests(
         occlusion_type: Type of occlusion
         seed: Random seed
     """
+    import shutil
+    import json
+    
     test_path = Path(test_dataset_path)
+    
+    # If test_path doesn't exist, search for it
+    if not test_path.exists():
+        print(f"⚠️ Test path doesn't exist: {test_path}")
+        print("Searching for test dataset...")
+        
+        # Try common locations
+        search_paths = [
+            test_path.parent,  # credit-cards-coco_split
+            test_path.parent.parent,  # datasets
+            test_path.parent.parent.parent / "datasets",  # MyDrive/credit_card_yolov12/datasets
+        ]
+        
+        found_test = None
+        for search_base in search_paths:
+            if not search_base.exists():
+                continue
+            
+            # Look for test directory
+            for item in search_base.iterdir():
+                if item.is_dir() and "test" in item.name.lower():
+                    # Check if it has annotations
+                    test_candidates = [
+                        item,
+                        item / "train",
+                    ]
+                    for candidate in test_candidates:
+                        if candidate.exists():
+                            ann_file = candidate / "_annotations.coco.json"
+                            if ann_file.exists():
+                                found_test = candidate
+                                print(f"✅ Found test dataset at: {found_test}")
+                                break
+                    if found_test:
+                        break
+                if found_test:
+                    break
+            if found_test:
+                break
+        
+        if found_test:
+            test_path = found_test.parent if found_test.name == "train" else found_test
+            print(f"✅ Using test path: {test_path}")
+        else:
+            raise FileNotFoundError(
+                f"Test dataset not found. Searched:\n"
+                f"  - {test_path}\n"
+                f"  - {test_path.parent}\n"
+                f"  - {test_path.parent.parent}\n"
+                f"\nPlease check the test dataset path or run dataset splitting first."
+            )
     
     if output_base is None:
         output_base = test_path.parent
@@ -39,21 +93,12 @@ def generate_progressive_tests(
     
     # Find source directory ONCE (could be test/ or test/train/)
     # This will be reused for both baseline and occluded test sets
-    import shutil
-    import json
-    
     src_dir = test_path
     if (test_path / "train").exists():
         src_dir = test_path / "train"
-    elif not test_path.exists():
-        # If test_path doesn't exist, try to find it
-        # Maybe it's actually pointing to test/train/ directly
-        if test_path.parent.exists():
-            # Check if parent has train subdirectory
-            parent_train = test_path.parent / "train"
-            if parent_train.exists() and (parent_train / "_annotations.coco.json").exists():
-                src_dir = parent_train
-                print(f"⚠️ Adjusted source directory to: {src_dir}")
+    elif test_path.name == "train":
+        # Already pointing to train directory
+        src_dir = test_path
     
     # Verify source directory exists and has files
     if not src_dir.exists():
