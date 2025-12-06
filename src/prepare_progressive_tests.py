@@ -34,12 +34,14 @@ def generate_progressive_tests(
         output_base = test_path.parent
     
     output_base = Path(output_base)
+    # Ensure output_base directory exists
+    output_base.mkdir(parents=True, exist_ok=True)
     
     # Test set with 0% occlusion (original)
     print("Creating baseline test set (0% occlusion)...")
     test_0_path = output_base / "test_occlusion_0"
-    test_0_path.mkdir(exist_ok=True)
-    (test_0_path / "train").mkdir(exist_ok=True)
+    test_0_path.mkdir(parents=True, exist_ok=True)
+    (test_0_path / "train").mkdir(parents=True, exist_ok=True)
     
     # Copy original test set
     import shutil
@@ -75,8 +77,8 @@ def generate_progressive_tests(
         if not (test_path / "train").exists():
             # Create a temporary structure for obscure.py
             temp_test = test_path.parent / f"_temp_{test_path.name}"
-            temp_test.mkdir(exist_ok=True)
-            (temp_test / "train").mkdir(exist_ok=True)
+            temp_test.mkdir(parents=True, exist_ok=True)
+            (temp_test / "train").mkdir(parents=True, exist_ok=True)
             # Copy files
             for img_file in test_path.glob("*.jpg"):
                 shutil.copy2(img_file, temp_test / "train" / img_file.name)
