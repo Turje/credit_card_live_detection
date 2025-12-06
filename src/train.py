@@ -70,24 +70,32 @@ def convert_coco_to_yolo(dataset_path: str):
     from pathlib import Path
     
     dataset_path = Path(dataset_path)
+    print(f"Converting COCO to YOLO for: {dataset_path}")
     
     # Determine if dataset_path is the base directory or already the train directory
     # Check if annotation file exists directly (dataset_path is train directory)
     ann_file = dataset_path / "_annotations.coco.json"
+    print(f"Checking: {ann_file}")
     if ann_file.exists():
         train_dir = dataset_path
         base_dir = dataset_path.parent
+        print(f"✅ Found annotation file directly in dataset_path")
     else:
         # Check if it's in train subdirectory (dataset_path is base directory)
         train_dir = dataset_path / "train"
         ann_file = train_dir / "_annotations.coco.json"
+        print(f"Checking: {ann_file}")
         base_dir = dataset_path
+        if ann_file.exists():
+            print(f"✅ Found annotation file in train subdirectory")
     
     if not ann_file.exists():
         raise FileNotFoundError(
             f"Annotation file not found. Checked:\n"
             f"  - {dataset_path / '_annotations.coco.json'}\n"
-            f"  - {dataset_path / 'train' / '_annotations.coco.json'}"
+            f"  - {dataset_path / 'train' / '_annotations.coco.json'}\n"
+            f"Dataset path: {dataset_path}\n"
+            f"Dataset path exists: {dataset_path.exists()}"
         )
     
     # Load COCO annotations
