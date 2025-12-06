@@ -24,14 +24,21 @@ def evaluate_model_on_test_set(model_path: str, test_dataset_path: str):
     model = YOLO(model_path)
     test_path = Path(test_dataset_path)
     
-    # Find images directory
-    images_dir = test_path / "train" / "images"
-    if not images_dir.exists():
-        images_dir = test_path / "train"
+    # Find annotation file (could be in test_path/train/ or test_path/)
+    ann_file = test_path / "train" / "_annotations.coco.json"
+    if not ann_file.exists():
+        ann_file = test_path / "_annotations.coco.json"
+    
+    if not ann_file.exists():
+        raise FileNotFoundError(
+            f"Annotation file not found. Checked:\n"
+            f"  - {test_path / 'train' / '_annotations.coco.json'}\n"
+            f"  - {test_path / '_annotations.coco.json'}"
+        )
     
     # Run validation
     results = model.val(
-        data=str(test_path / "train" / "_annotations.coco.json"),
+        data=str(ann_file),
         imgsz=640,
         conf=0.25,
         iou=0.45,
@@ -65,6 +72,24 @@ def evaluate_progressive(
         output_dir: Output directory for results
     """
     test_base = Path(test_sets_base)
+    
+    # If test_base doesn't exist, search for split directory
+    if not test_base.exists():
+        print(f"⚠️ Test sets base not found: {test_base}")
+        print("Searching for split directory...")
+        
+        # Look for directories ending with _split
+        parent_dir = test_base.parent
+        if parent_dir.exists():
+            split_dirs = list(parent_dir.glob("*_split"))
+            if split_dirs:
+                test_base = split_dirs[0]
+                print(f"✅ Found split directory: {test_base}")
+            else:
+                raise FileNotFoundError(f"Could not find split directory in {parent_dir}")
+        else:
+            raise FileNotFoundError(f"Parent directory does not exist: {parent_dir}")
+    
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
     
