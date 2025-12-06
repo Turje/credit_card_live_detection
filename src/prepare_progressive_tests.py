@@ -38,7 +38,7 @@ def generate_progressive_tests(
         print(f"⚠️ Test path doesn't exist: {test_path}")
         print("Searching for test dataset...")
         
-        # Try common locations
+        # Try common locations - look for any directory ending with _split
         search_paths = [
             test_path.parent,  # credit-cards-coco_split
             test_path.parent.parent,  # datasets
@@ -50,25 +50,48 @@ def generate_progressive_tests(
             if not search_base.exists():
                 continue
             
-            # Look for test directory
+            # First, look for directories ending with _split (created by split_dataset.py)
             for item in search_base.iterdir():
-                if item.is_dir() and "test" in item.name.lower():
-                    # Check if it has annotations
-                    test_candidates = [
-                        item,
-                        item / "train",
-                    ]
-                    for candidate in test_candidates:
-                        if candidate.exists():
-                            ann_file = candidate / "_annotations.coco.json"
-                            if ann_file.exists():
-                                found_test = candidate
-                                print(f"✅ Found test dataset at: {found_test}")
-                                break
-                    if found_test:
-                        break
+                if item.is_dir() and item.name.endswith("_split"):
+                    # Check if it has a test subdirectory
+                    test_dir = item / "test"
+                    if test_dir.exists():
+                        ann_file = test_dir / "_annotations.coco.json"
+                        if ann_file.exists():
+                            found_test = test_dir
+                            print(f"✅ Found test dataset at: {found_test}")
+                            break
+                    # Also check if test/train exists
+                    test_train = item / "test" / "train"
+                    if test_train.exists():
+                        ann_file = test_train / "_annotations.coco.json"
+                        if ann_file.exists():
+                            found_test = test_train
+                            print(f"✅ Found test dataset at: {found_test}")
+                            break
                 if found_test:
                     break
+            
+            # If not found in _split directories, look for any test directory
+            if not found_test:
+                for item in search_base.iterdir():
+                    if item.is_dir() and "test" in item.name.lower():
+                        # Check if it has annotations
+                        test_candidates = [
+                            item,
+                            item / "train",
+                        ]
+                        for candidate in test_candidates:
+                            if candidate.exists():
+                                ann_file = candidate / "_annotations.coco.json"
+                                if ann_file.exists():
+                                    found_test = candidate
+                                    print(f"✅ Found test dataset at: {found_test}")
+                                    break
+                        if found_test:
+                            break
+                    if found_test:
+                        break
             if found_test:
                 break
         
