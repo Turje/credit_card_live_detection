@@ -26,9 +26,28 @@ inference:
   video_path: null          # Path to input video (MP4)
   image_path: null          # Path to input image
   output_path: "outputs"    # Output directory for inference results
-  conf_threshold: 0.25      # Confidence threshold
+  conf_threshold: 0.25      # Confidence threshold (default, can be overridden by class_thresholds)
   iou_threshold: 0.45       # IoU threshold for NMS
   device: "cuda"            # Options: "cuda", "cpu", "mps"
   save_video: true          # Save output video
   show_video: false         # Display video during inference
+  # Per-class confidence thresholds (optional, overrides conf_threshold for specific classes)
+  class_thresholds: {}      # Example: {"person": 0.5, "car": 0.3}
+  # Class filtering
+  filter_classes: null     # List of class names to include (null = all)
+  exclude_classes: null     # List of class names to exclude
+  # Visualization options
+  show_labels: true         # Show class labels on boxes
+  show_confidences: true   # Show confidence scores on boxes
+  custom_colors: null       # Custom colors dict (null = use default)
+  # Export options
+  export_format: null      # Export format: "json", "csv", "xml", or null
+  export_path: null        # Path for export file (null = auto-generate)
+  # Performance options
+  frame_skip: 1             # Process every Nth frame (1 = all frames)
+  batch_size: 8            # Batch size for image batch processing
+  num_workers: 4            # Number of worker threads for batch processing
+  multi_gpu: false          # Use multiple GPUs
+  gpu_ids: null            # List of GPU IDs to use (null = use all available)
+  async_mode: false         # Use async processing (experimental)
 
