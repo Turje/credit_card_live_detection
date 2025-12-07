@@ -240,8 +240,22 @@ def generate_progressive_tests(
             
             # Copy annotations from the detected source directory (already verified to exist)
             ann_file = src_dir / "_annotations.coco.json"
-            shutil.copy2(ann_file, temp_test / "train" / "_annotations.coco.json")
-            print(f"✅ Copied annotation file to temp directory")
+            
+            # Fix annotation file: remove path prefixes from image filenames
+            with open(ann_file, 'r') as f:
+                ann_data = json.load(f)
+            
+            # Normalize file_name paths (remove directory prefixes)
+            for img_info in ann_data['images']:
+                # Extract just the filename, removing any path prefix
+                original_name = img_info['file_name']
+                img_info['file_name'] = Path(original_name).name
+            
+            # Save fixed annotation file
+            fixed_ann_file = temp_test / "train" / "_annotations.coco.json"
+            with open(fixed_ann_file, 'w') as f:
+                json.dump(ann_data, f, indent=2)
+            print(f"✅ Copied and fixed annotation file (removed path prefixes)")
         
         # Verify temp_test has the required structure before proceeding
         if not (temp_test / "train" / "_annotations.coco.json").exists():
