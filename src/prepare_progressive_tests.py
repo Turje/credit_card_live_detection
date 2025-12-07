@@ -2,9 +2,11 @@
 Generate progressive occlusion test sets from test split.
 Creates test sets with 0%, 25%, 50%, 75% occlusion.
 """
+
 import argparse
 import sys
 from pathlib import Path
+from typing import Optional, List
 
 # Add parent directory to path for imports
 parent_dir = Path(__file__).parent.parent
@@ -14,15 +16,15 @@ from src.obscure import PartialOcclusionGenerator
 
 
 def generate_progressive_tests(
-    test_dataset_path: str,
-    output_base: str = None,
+    test_dataset_path: str | Path,
+    output_base: Optional[str | Path] = None,
     occlusion_type: str = "patch",
     seed: int = 42,
-    occlusion_levels: list = None
-):
+    occlusion_levels: Optional[List[float]] = None,
+) -> None:
     """
     Generate progressive occlusion test sets.
-    
+
     Args:
         test_dataset_path: Path to test dataset directory
         output_base: Base output directory (default: same as test_dataset_path parent)
@@ -31,26 +33,27 @@ def generate_progressive_tests(
     """
     import shutil
     import json
-    
+
     test_path = Path(test_dataset_path)
-    
+
     # If test_path doesn't exist, search for it
     if not test_path.exists():
         print(f"⚠️ Test path doesn't exist: {test_path}")
         print("Searching for test dataset...")
-        
+
         # Try common locations - look for any directory ending with _split
         search_paths = [
             test_path.parent,  # credit-cards-coco_split
             test_path.parent.parent,  # datasets
-            test_path.parent.parent.parent / "datasets",  # MyDrive/credit_card_yolov12/datasets
+            test_path.parent.parent.parent
+            / "datasets",  # MyDrive/credit_card_yolov12/datasets
         ]
-        
+
         found_test = None
         for search_base in search_paths:
             if not search_base.exists():
                 continue
-            
+
             # First, look for directories ending with _split (created by split_dataset.py)
             for item in search_base.iterdir():
                 if item.is_dir() and item.name.endswith("_split"):
@@ -72,7 +75,7 @@ def generate_progressive_tests(
                             break
                 if found_test:
                     break
-            
+
             # If not found in _split directories, look for any test directory
             if not found_test:
                 for item in search_base.iterdir():
@@ -95,7 +98,7 @@ def generate_progressive_tests(
                         break
             if found_test:
                 break
-        
+
         if found_test:
             test_path = found_test.parent if found_test.name == "train" else found_test
             print(f"✅ Using test path: {test_path}")
@@ -103,7 +106,7 @@ def generate_progressive_tests(
             # Last resort: check if original dataset has a test set, or use train set temporarily
             print("⚠️ Test dataset not found in split directories.")
             print("Checking original dataset structure...")
-            
+
             # Look for original dataset
             original_dataset = test_path.parent.parent
             possible_test_locations = [
@@ -113,28 +116,36 @@ def generate_progressive_tests(
                 original_dataset / "val" / "train",
                 original_dataset / "train",  # Use train as last resort
             ]
-            
+
             for loc in possible_test_locations:
                 if loc.exists():
                     ann_file = loc / "_annotations.coco.json"
                     if not ann_file.exists() and loc.parent.exists():
                         ann_file = loc.parent / "_annotations.coco.json"
-                    
+
                     if ann_file.exists():
                         found_test = loc
                         test_path = loc.parent if loc.name == "train" else loc
                         print(f"✅ Found alternative dataset at: {test_path}")
-                        print(f"⚠️ Note: Using {loc.name} set. Consider running split_dataset.py first.")
+                        print(
+                            f"⚠️ Note: Using {loc.name} set. Consider running split_dataset.py first."
+                        )
                         break
-            
+
             if not found_test:
                 # Check if split directory exists but is empty
                 split_dir = test_path.parent
                 if split_dir.exists() and split_dir.name.endswith("_split"):
-                    print(f"\n⚠️ Found split directory but test subdirectory is missing: {split_dir}")
-                    print(f"   This suggests dataset splitting may have failed or is incomplete.")
-                    print(f"   Please check if split_dataset.py completed successfully.")
-                
+                    print(
+                        f"\n⚠️ Found split directory but test subdirectory is missing: {split_dir}"
+                    )
+                    print(
+                        f"   This suggests dataset splitting may have failed or is incomplete."
+                    )
+                    print(
+                        f"   Please check if split_dataset.py completed successfully."
+                    )
+
                 raise FileNotFoundError(
                     f"\n❌ Test dataset not found!\n\n"
                     f"Searched locations:\n"
@@ -146,14 +157,14 @@ def generate_progressive_tests(
                     f"   Or if your dataset is at a different location, use:\n"
                     f"   python src/split_dataset.py --dataset <path_to_original_dataset> --seed 42"
                 )
-    
+
     if output_base is None:
         output_base = test_path.parent
-    
+
     output_base = Path(output_base)
     # Ensure output_base directory exists
     output_base.mkdir(parents=True, exist_ok=True)
-    
+
     # Find source directory ONCE (could be test/ or test/train/)
     # This will be reused for both baseline and occluded test sets
     src_dir = test_path
@@ -162,7 +173,7 @@ def generate_progressive_tests(
     elif test_path.name == "train":
         # Already pointing to train directory
         src_dir = test_path
-    
+
     # Verify source directory exists and has files
     if not src_dir.exists():
         raise FileNotFoundError(
@@ -171,7 +182,7 @@ def generate_progressive_tests(
             f"Test path exists: {test_path.exists()}\n"
             f"Please check the test dataset path."
         )
-    
+
     # Verify annotation file exists
     ann_file = src_dir / "_annotations.coco.json"
     if not ann_file.exists():
@@ -180,39 +191,42 @@ def generate_progressive_tests(
             f"Source directory: {src_dir}\n"
             f"Files in source: {list(src_dir.glob('*'))[:10]}"
         )
-    
+
     print(f"✅ Using source directory: {src_dir}")
     print(f"   Annotation file: {ann_file}")
-    
+
     # Test set with 0% occlusion (original)
     print("\nCreating baseline test set (0% occlusion)...")
     test_0_path = output_base / "test_occlusion_0"
     test_0_path.mkdir(parents=True, exist_ok=True)
     (test_0_path / "train").mkdir(parents=True, exist_ok=True)
-    
+
     # Copy images
     for img_file in src_dir.glob("*.jpg"):
         shutil.copy2(img_file, test_0_path / "train" / img_file.name)
-    
+
     # Copy annotations
     ann_file = src_dir / "_annotations.coco.json"
     if ann_file.exists():
         shutil.copy2(ann_file, test_0_path / "train" / "_annotations.coco.json")
-    
+
     print(f"✅ Baseline test set created: {test_0_path}")
-    
+
     # Generate occluded test sets
     if occlusion_levels is None:
         occlusion_levels = [0.25, 0.50, 0.75]  # Default levels
     else:
         # Ensure levels are floats between 0 and 1
-        occlusion_levels = [float(level) if level <= 1.0 else float(level) / 100.0 for level in occlusion_levels]
-    
+        occlusion_levels = [
+            float(level) if level <= 1.0 else float(level) / 100.0
+            for level in occlusion_levels
+        ]
+
     for occlusion_ratio in occlusion_levels:
         print(f"\nGenerating test set with {occlusion_ratio*100:.0f}% occlusion...")
-        
+
         output_path = output_base / f"test_occlusion_{int(occlusion_ratio*100)}"
-        
+
         # Use src_dir that was detected at the beginning (reuse for consistency)
         # obscure.py expects a structure with train/ subdirectory
         # Check if we need to create a temporary structure
@@ -227,7 +241,7 @@ def generate_progressive_tests(
             temp_test.mkdir(parents=True, exist_ok=True)
             (temp_test / "train").mkdir(parents=True, exist_ok=True)
             print(f"✅ Creating temp structure: {temp_test}")
-            
+
             # Copy files from the detected source directory
             img_count = 0
             for img_file in src_dir.glob("*.jpg"):
@@ -237,47 +251,47 @@ def generate_progressive_tests(
                 shutil.copy2(img_file, temp_test / "train" / img_file.name)
                 img_count += 1
             print(f"   Copied {img_count} images")
-            
+
             # Copy annotations from the detected source directory (already verified to exist)
             ann_file = src_dir / "_annotations.coco.json"
-            
+
             # Fix annotation file: remove path prefixes from image filenames
-            with open(ann_file, 'r') as f:
+            with open(ann_file, "r") as f:
                 ann_data = json.load(f)
-            
+
             # Normalize file_name paths (remove directory prefixes)
-            for img_info in ann_data['images']:
+            for img_info in ann_data["images"]:
                 # Extract just the filename, removing any path prefix
-                original_name = img_info['file_name']
-                img_info['file_name'] = Path(original_name).name
-            
+                original_name = img_info["file_name"]
+                img_info["file_name"] = Path(original_name).name
+
             # Save fixed annotation file
             fixed_ann_file = temp_test / "train" / "_annotations.coco.json"
-            with open(fixed_ann_file, 'w') as f:
+            with open(fixed_ann_file, "w") as f:
                 json.dump(ann_data, f, indent=2)
             print(f"✅ Copied and fixed annotation file (removed path prefixes)")
-        
+
         # Verify temp_test has the required structure before proceeding
         if not (temp_test / "train" / "_annotations.coco.json").exists():
             raise FileNotFoundError(
                 f"Annotation file missing in temp directory: {temp_test / 'train' / '_annotations.coco.json'}\n"
                 f"Temp directory contents: {list((temp_test / 'train').glob('*')) if (temp_test / 'train').exists() else 'train/ does not exist'}"
             )
-        
+
         generator = PartialOcclusionGenerator(str(temp_test))
         generator.generate_obscured_dataset(
             output_path=str(output_path),
             occlusion_type=occlusion_type,
             occlusion_ratio=occlusion_ratio,
-            random_seed=seed
+            random_seed=seed,
         )
-        
+
         # Clean up temp directory if created
         if temp_test != test_path and temp_test.exists():
             shutil.rmtree(temp_test)
-        
+
         print(f"✅ Test set created: {output_path}")
-    
+
     print(f"\n✅ All progressive test sets created!")
     print(f"Test sets available:")
     print(f"  - test_occlusion_0 (baseline)")
@@ -286,64 +300,62 @@ def generate_progressive_tests(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Generate progressive occlusion test sets")
+    parser = argparse.ArgumentParser(
+        description="Generate progressive occlusion test sets"
+    )
     parser.add_argument(
-        "--test-dataset",
-        type=str,
-        required=True,
-        help="Path to test dataset directory"
+        "--test-dataset", type=str, required=True, help="Path to test dataset directory"
     )
     parser.add_argument(
         "--output",
         type=str,
         default=None,
-        help="Output base directory (default: same as test dataset parent)"
+        help="Output base directory (default: same as test dataset parent)",
     )
     parser.add_argument(
         "--type",
         type=str,
         default="crop",
         choices=["patch", "blur", "noise", "black", "white", "crop", "random"],
-        help="Occlusion type: 'crop' (camera pan/zoom, recommended), 'patch' (random patches), etc. (default: crop)"
+        help="Occlusion type: 'crop' (camera pan/zoom, recommended), 'patch' (random patches), etc. (default: crop)",
     )
     parser.add_argument(
-        "--seed",
-        type=int,
-        default=42,
-        help="Random seed (default: 42)"
+        "--seed", type=int, default=42, help="Random seed (default: 42)"
     )
     parser.add_argument(
         "--levels",
         type=float,
         nargs="+",
         default=None,
-        help="Occlusion levels as percentages (e.g., --levels 25 75 100 for 25%, 75%, 100%). Default: 25 50 75"
+        help="Occlusion levels as percentages (e.g., --levels 25 75 100 for 25%, 75%, 100%). Default: 25 50 75",
     )
-    
+
     args = parser.parse_args()
-    
+
     # Convert levels to ratios if provided
     occlusion_levels = None
     if args.levels:
-        occlusion_levels = [level / 100.0 if level > 1.0 else level for level in args.levels]
-    
+        occlusion_levels = [
+            level / 100.0 if level > 1.0 else level for level in args.levels
+        ]
+
     try:
         generate_progressive_tests(
             test_dataset_path=args.test_dataset,
             output_base=args.output,
             occlusion_type=args.type,
             seed=args.seed,
-            occlusion_levels=occlusion_levels
+            occlusion_levels=occlusion_levels,
         )
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return 1
-    
+
     return 0
 
 
 if __name__ == "__main__":
     exit(main())
-

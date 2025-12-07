@@ -1,4 +1,4 @@
-.PHONY: help install setup download-credit-card clean test check-env visualize overlay stats obscure
+.PHONY: help install setup download-credit-card clean test check-env visualize overlay stats obscure lint type-check format format-check check
 
 # Default values
 WORKSPACE ?= 
@@ -190,4 +190,23 @@ inference-image: ## Run image inference (make inference-image MODEL=models/.../b
 		--conf-threshold $(or $(CONF_THRESHOLD),0.25) \
 		--device $(or $(DEVICE),cuda) \
 		$(if $(CONFIG),--config $(CONFIG))
+
+# Code Quality Checks
+lint: ## Run linting checks with ruff
+	ruff check src/ tests/ example.py
+
+lint-fix: ## Run linting checks and auto-fix issues with ruff
+	ruff check --fix src/ tests/ example.py
+
+type-check: ## Run type checking with mypy
+	mypy src/ tests/ example.py
+
+format: ## Format code with black
+	black src/ tests/ example.py
+
+format-check: ## Check code formatting with black (without modifying files)
+	black --check src/ tests/ example.py
+
+check: format-check lint type-check ## Run all code quality checks (format, lint, type-check)
+	@echo "All checks passed!"
 

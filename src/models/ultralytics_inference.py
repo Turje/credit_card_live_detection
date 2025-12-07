@@ -37,8 +37,8 @@ class UltralyticsInference:
     
     def process_video(
         self,
-        video_path: str,
-        output_path: str,
+        video_path: str | Path,
+        output_path: str | Path,
         conf_threshold: float = 0.25,
         iou_threshold: float = 0.45,
         save_video: bool = True,
@@ -58,17 +58,17 @@ class UltralyticsInference:
         Returns:
             Tuple of (total_frames, processed_frames)
         """
-        video_path = Path(video_path)
-        if not video_path.exists():
-            raise FileNotFoundError(f"Video not found: {video_path}")
+        video_path_obj = Path(video_path)
+        if not video_path_obj.exists():
+            raise FileNotFoundError(f"Video not found: {video_path_obj}")
         
-        output_path = Path(output_path)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path_obj = Path(output_path)
+        output_path_obj.parent.mkdir(parents=True, exist_ok=True)
         
         # Open video
-        cap = cv2.VideoCapture(str(video_path))
+        cap = cv2.VideoCapture(str(video_path_obj))
         if not cap.isOpened():
-            raise ValueError(f"Could not open video: {video_path}")
+            raise ValueError(f"Could not open video: {video_path_obj}")
         
         # Get video properties
         fps = int(cap.get(cv2.CAP_PROP_FPS))
@@ -83,9 +83,9 @@ class UltralyticsInference:
         
         # Setup video writer
         if save_video:
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            fourcc = cv2.VideoWriter.fourcc(*'mp4v')
             out = cv2.VideoWriter(
-                str(output_path),
+                str(output_path_obj),
                 fourcc,
                 fps,
                 (width, height)
@@ -143,14 +143,14 @@ class UltralyticsInference:
         print(f"\n✅ Video processing complete!")
         print(f"   Processed {processed_frames}/{total_frames} frames")
         if save_video:
-            print(f"   Output saved to: {output_path}")
+            print(f"   Output saved to: {output_path_obj}")
         
         return total_frames, processed_frames
     
     def process_image(
         self,
-        image_path: str,
-        output_path: Optional[str] = None,
+        image_path: str | Path,
+        output_path: Optional[str | Path] = None,
         conf_threshold: float = 0.25,
         iou_threshold: float = 0.45
     ) -> np.ndarray:
@@ -166,13 +166,13 @@ class UltralyticsInference:
         Returns:
             Annotated image as numpy array
         """
-        image_path = Path(image_path)
-        if not image_path.exists():
-            raise FileNotFoundError(f"Image not found: {image_path}")
+        image_path_obj = Path(image_path)
+        if not image_path_obj.exists():
+            raise FileNotFoundError(f"Image not found: {image_path_obj}")
         
         # Run inference
         results = self.model.predict(
-            str(image_path),
+            str(image_path_obj),
             conf=conf_threshold,
             iou=iou_threshold,
             device=self.device,
@@ -184,10 +184,10 @@ class UltralyticsInference:
         
         # Save if requested
         if output_path:
-            output_path = Path(output_path)
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            cv2.imwrite(str(output_path), annotated_image)
-            print(f"✅ Image saved to: {output_path}")
+            output_path_obj = Path(output_path)
+            output_path_obj.parent.mkdir(parents=True, exist_ok=True)
+            cv2.imwrite(str(output_path_obj), annotated_image)
+            print(f"✅ Image saved to: {output_path_obj}")
         
         return annotated_image
 

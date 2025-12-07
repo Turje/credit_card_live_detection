@@ -2,6 +2,7 @@
 Unified configuration loader for training and inference.
 Supports YAML config files and CLI argument overrides.
 """
+
 import yaml
 import argparse
 from pathlib import Path
@@ -12,6 +13,7 @@ from dataclasses import dataclass
 @dataclass
 class ModelConfig:
     """Model configuration."""
+
     framework: str
     name: str
     checkpoint: Optional[str] = None
@@ -20,6 +22,7 @@ class ModelConfig:
 @dataclass
 class DatasetConfig:
     """Dataset configuration."""
+
     path: str
     format: str
     train_split: str = "train"
@@ -29,6 +32,7 @@ class DatasetConfig:
 @dataclass
 class TrainingConfig:
     """Training configuration."""
+
     epochs: int
     batch_size: int
     img_size: int
@@ -41,6 +45,7 @@ class TrainingConfig:
 @dataclass
 class InferenceConfig:
     """Inference configuration."""
+
     video_path: Optional[str] = None
     image_path: Optional[str] = None
     output_path: str = "outputs"
@@ -54,6 +59,7 @@ class InferenceConfig:
 @dataclass
 class Config:
     """Unified configuration."""
+
     model: ModelConfig
     dataset: DatasetConfig
     training: TrainingConfig
@@ -62,26 +68,28 @@ class Config:
 
 class ConfigLoader:
     """Loads and manages configuration from YAML and CLI arguments."""
-    
+
     DEFAULT_CONFIG_PATH = Path("configs/config.yaml")
-    
+
     def __init__(self, config_path: Optional[str] = None):
         """
         Initialize config loader.
-        
+
         Args:
             config_path: Path to config YAML file (default: configs/config.yaml)
         """
-        self.config_path = Path(config_path) if config_path else self.DEFAULT_CONFIG_PATH
+        self.config_path = (
+            Path(config_path) if config_path else self.DEFAULT_CONFIG_PATH
+        )
         self._config: Optional[Config] = None
-    
+
     def load_from_yaml(self) -> Dict[str, Any]:
         """
         Load configuration from YAML file.
-        
+
         Returns:
             Dictionary with configuration values
-            
+
         Raises:
             FileNotFoundError: If config file doesn't exist
         """
@@ -90,123 +98,79 @@ class ConfigLoader:
                 f"Config file not found: {self.config_path}\n"
                 f"Please create it or specify a different path."
             )
-        
-        with open(self.config_path, 'r') as f:
-            config_dict = yaml.safe_load(f)
-        
+
+        with open(self.config_path, "r") as f:
+            config_dict: Dict[str, Any] = yaml.safe_load(f) or {}
+
         return config_dict
-    
+
     def parse_cli_args(self) -> argparse.Namespace:
         """
         Parse CLI arguments for training and inference.
-        
+
         Returns:
             Parsed arguments namespace
         """
         parser = argparse.ArgumentParser(
             description="Object Detection Training and Inference"
         )
-        
+
         # Model arguments
         parser.add_argument(
             "--framework",
             type=str,
             choices=["ultralytics", "mmdet"],
-            help="Model framework"
+            help="Model framework",
         )
         parser.add_argument(
-            "--model-name",
-            type=str,
-            help="Model name (e.g., yolov8n, rtmdet-s)"
+            "--model-name", type=str, help="Model name (e.g., yolov8n, rtmdet-s)"
         )
-        parser.add_argument(
-            "--checkpoint",
-            type=str,
-            help="Path to model checkpoint"
-        )
-        
+        parser.add_argument("--checkpoint", type=str, help="Path to model checkpoint")
+
         # Dataset arguments
         parser.add_argument(
-            "--dataset-path",
-            type=str,
-            help="Path to dataset directory"
+            "--dataset-path", type=str, help="Path to dataset directory"
         )
         parser.add_argument(
             "--dataset-format",
             type=str,
             choices=["coco", "yolo"],
-            help="Dataset format"
+            help="Dataset format",
         )
-        
+
         # Training arguments
+        parser.add_argument("--epochs", type=int, help="Number of training epochs")
+        parser.add_argument("--batch-size", type=int, help="Batch size")
+        parser.add_argument("--img-size", type=int, help="Image size")
         parser.add_argument(
-            "--epochs",
-            type=int,
-            help="Number of training epochs"
+            "--output-dir", type=str, help="Output directory for models"
         )
-        parser.add_argument(
-            "--batch-size",
-            type=int,
-            help="Batch size"
-        )
-        parser.add_argument(
-            "--img-size",
-            type=int,
-            help="Image size"
-        )
-        parser.add_argument(
-            "--output-dir",
-            type=str,
-            help="Output directory for models"
-        )
-        parser.add_argument(
-            "--device",
-            type=str,
-            help="Device (cuda, cpu, mps)"
-        )
-        
+        parser.add_argument("--device", type=str, help="Device (cuda, cpu, mps)")
+
         # Inference arguments
-        parser.add_argument(
-            "--video-path",
-            type=str,
-            help="Path to input video"
-        )
-        parser.add_argument(
-            "--image-path",
-            type=str,
-            help="Path to input image"
-        )
-        parser.add_argument(
-            "--conf-threshold",
-            type=float,
-            help="Confidence threshold"
-        )
-        parser.add_argument(
-            "--config",
-            type=str,
-            help="Path to config YAML file"
-        )
-        
+        parser.add_argument("--video-path", type=str, help="Path to input video")
+        parser.add_argument("--image-path", type=str, help="Path to input image")
+        parser.add_argument("--conf-threshold", type=float, help="Confidence threshold")
+        parser.add_argument("--config", type=str, help="Path to config YAML file")
+
         return parser.parse_args()
-    
+
     def merge_configs(
-        self,
-        yaml_config: Dict[str, Any],
-        cli_args: Optional[argparse.Namespace] = None
+        self, yaml_config: Dict[str, Any], cli_args: Optional[argparse.Namespace] = None
     ) -> Config:
         """
         Merge YAML config with CLI arguments (CLI takes precedence).
-        
+
         Args:
             yaml_config: Configuration from YAML file
             cli_args: Parsed CLI arguments (optional)
-            
+
         Returns:
             Merged Config object
         """
         # Start with YAML config
         merged = yaml_config.copy()
-        
+
         # Override with CLI args if provided
         if cli_args:
             if cli_args.framework:
@@ -235,28 +199,30 @@ class ConfigLoader:
             if cli_args.image_path:
                 merged.setdefault("inference", {})["image_path"] = cli_args.image_path
             if cli_args.conf_threshold:
-                merged.setdefault("inference", {})["conf_threshold"] = cli_args.conf_threshold
-        
+                merged.setdefault("inference", {})[
+                    "conf_threshold"
+                ] = cli_args.conf_threshold
+
         # Create Config object
         model_config = ModelConfig(**merged.get("model", {}))
         dataset_config = DatasetConfig(**merged.get("dataset", {}))
         training_config = TrainingConfig(**merged.get("training", {}))
         inference_config = InferenceConfig(**merged.get("inference", {}))
-        
+
         return Config(
             model=model_config,
             dataset=dataset_config,
             training=training_config,
-            inference=inference_config
+            inference=inference_config,
         )
-    
+
     def load(self, cli_args: Optional[argparse.Namespace] = None) -> Config:
         """
         Load configuration from YAML and merge with CLI arguments.
-        
+
         Args:
             cli_args: Parsed CLI arguments (optional)
-            
+
         Returns:
             Config object
         """
@@ -264,18 +230,17 @@ class ConfigLoader:
         config = self.merge_configs(yaml_config, cli_args)
         self._config = config
         return config
-    
+
     def get_config(self) -> Config:
         """
         Get loaded configuration.
-        
+
         Returns:
             Config object
-            
+
         Raises:
             ValueError: If config hasn't been loaded yet
         """
         if self._config is None:
             raise ValueError("Config not loaded. Call load() first.")
         return self._config
-

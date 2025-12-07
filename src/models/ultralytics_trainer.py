@@ -4,7 +4,7 @@ Ultralytics YOLOv8 training wrapper.
 from pathlib import Path
 from ultralytics import YOLO
 import yaml
-from typing import Optional
+from typing import Optional, Union
 from ..train import convert_coco_to_yolo, prepare_dataset_config
 
 
@@ -33,11 +33,11 @@ class UltralyticsTrainer:
     
     def train(
         self,
-        dataset_path: str,
+        dataset_path: str | Path,
         epochs: int = 100,
         img_size: int = 640,
         batch_size: int = 16,
-        output_dir: str = "models",
+        output_dir: str | Path = "models",
         device: str = "cuda",
         workers: int = 8,
         patience: int = 50
@@ -58,32 +58,32 @@ class UltralyticsTrainer:
         Returns:
             Training results
         """
-        dataset_path = Path(dataset_path)
+        dataset_path_obj = Path(dataset_path)
         
         # Check if split dataset exists
-        dataset_parent = dataset_path.parent
-        split_base = dataset_parent / f"{dataset_path.name.replace('_split', '')}_split"
+        dataset_parent = dataset_path_obj.parent
+        split_base = dataset_parent / f"{dataset_path_obj.name.replace('_split', '')}_split"
         
         if split_base.exists():
             train_path = split_base / "train"
             val_path = split_base / "val"
         else:
-            train_path = dataset_path / "train"
-            val_path = dataset_path / "val" if (dataset_path / "val").exists() else train_path
+            train_path = dataset_path_obj / "train"
+            val_path = dataset_path_obj / "val" if (dataset_path_obj / "val").exists() else train_path
         
         # Convert COCO to YOLO format if needed
         yolo_labels = train_path / "labels"
         if not yolo_labels.exists() or len(list(yolo_labels.glob("*.txt"))) == 0:
             print("Converting COCO to YOLO format...")
             # Convert train set
-            convert_coco_to_yolo(str(train_path.parent) if split_base.exists() else str(dataset_path))
+            convert_coco_to_yolo(str(train_path.parent) if split_base.exists() else str(dataset_path_obj))
             # Convert val set if separate
             if val_path != train_path and val_path.exists():
                 convert_coco_to_yolo(str(val_path.parent) if split_base.exists() else str(val_path.parent))
         
         # Create dataset config
         config_file = "dataset.yaml"
-        prepare_dataset_config(str(dataset_path), config_file)
+        prepare_dataset_config(str(dataset_path_obj), config_file)
         
         # Map device names
         device_map = {

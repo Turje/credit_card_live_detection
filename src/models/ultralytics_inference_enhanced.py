@@ -51,7 +51,7 @@ class UltralyticsInferenceEnhanced:
         self.multi_gpu = multi_gpu
         if multi_gpu and device == "cuda":
             if gpu_ids is None:
-                self.gpu_ids = list(range(torch.cuda.device_count()))
+                self.gpu_ids: Optional[List[int]] = list(range(torch.cuda.device_count()))
             else:
                 self.gpu_ids = gpu_ids
             print(f"🖥️  Multi-GPU mode: Using GPUs {self.gpu_ids}")
@@ -59,8 +59,13 @@ class UltralyticsInferenceEnhanced:
             self.gpu_ids = None
 
         # Map device names
+        if multi_gpu and device == "cuda" and self.gpu_ids is not None:
+            device_str = ",".join(map(str, self.gpu_ids))
+        else:
+            device_str = "0" if device == "cuda" else device
+        
         device_map = {
-            "cuda": "0" if not multi_gpu else ",".join(map(str, self.gpu_ids)),
+            "cuda": device_str,
             "cpu": "cpu",
             "mps": "mps",
         }
