@@ -1,0 +1,34 @@
+# Unified configuration for object detection training and inference
+# This config can be overridden by CLI arguments
+
+model:
+  framework: "ultralytics"  # Options: "ultralytics", "mmdet"
+  name: "yolov8n"           # For ultralytics: yolov8n, yolov8s, yolov8m, yolov8l, yolov8x
+                            # For mmdet: rtmdet-s, rtdetr-l, yolox-s, dino-4scale
+  checkpoint: null          # Path to checkpoint (null = use pretrained)
+
+dataset:
+  path: "datasets/my_dataset"  # Path to dataset directory
+  format: "coco"              # Options: "coco", "yolo"
+  train_split: "train"        # Training split directory name
+  val_split: "val"            # Validation split directory name
+
+training:
+  epochs: 100
+  batch_size: 16
+  img_size: 640              # Image size for training
+  output_dir: "models"       # Output directory for trained models
+  device: "cuda"             # Options: "cuda", "cpu", "mps" (for Mac)
+  workers: 8                 # Number of data loading workers
+  patience: 50              # Early stopping patience
+
+inference:
+  video_path: null          # Path to input video (MP4)
+  image_path: null          # Path to input image
+  output_path: "outputs"    # Output directory for inference results
+  conf_threshold: 0.25      # Confidence threshold
+  iou_threshold: 0.45       # IoU threshold for NMS
+  device: "cuda"            # Options: "cuda", "cpu", "mps"
+  save_video: true          # Save output video
+  show_video: false         # Display video during inference
+

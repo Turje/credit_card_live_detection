@@ -1,5 +1,5 @@
 """
-Visualize cropped credit card regions from bounding boxes.
+Visualize cropped object regions from bounding boxes.
 Shows original vs occluded crops side by side.
 """
 import json
@@ -143,7 +143,7 @@ def visualize_crops(
         ax2.axis('off')
     
     # Add title
-    fig.suptitle('Cropped Credit Card Regions: Original vs Occluded', 
+    fig.suptitle('Cropped Object Regions: Original vs Occluded', 
                  fontsize=16, fontweight='bold', y=0.98)
     
     # Save
@@ -157,7 +157,7 @@ def visualize_crops(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Visualize cropped credit card regions")
+    parser = argparse.ArgumentParser(description="Visualize cropped object regions")
     parser.add_argument(
         "--original",
         type=str,

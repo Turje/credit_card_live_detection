@@ -1,5 +1,5 @@
 """
-YOLOv8 Training Script for Credit Card Detection
+YOLOv8 Training Script for Object Detection
 Supports training on full and partial occlusion datasets
 """
 import argparse
@@ -207,7 +207,7 @@ def train_model(
         imgsz=imgsz,
         batch=batch,
         project=output_dir,
-        name=f"credit_card_{model_size}",
+        name=f"model_{model_size}",
         exist_ok=True,
         save=True,
         plots=True
@@ -220,7 +220,7 @@ def train_model(
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Train YOLOv8 model for credit card detection")
+    parser = argparse.ArgumentParser(description="Train YOLOv8 model for object detection")
     parser.add_argument(
         "--dataset",
         type=str,
