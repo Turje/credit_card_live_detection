@@ -207,7 +207,12 @@ class ConfigLoader:
         model_config = ModelConfig(**merged.get("model", {}))
         dataset_config = DatasetConfig(**merged.get("dataset", {}))
         training_config = TrainingConfig(**merged.get("training", {}))
-        inference_config = InferenceConfig(**merged.get("inference", {}))
+        
+        # Filter inference config to only include fields that exist in InferenceConfig
+        inference_dict = merged.get("inference", {})
+        inference_fields = InferenceConfig.__dataclass_fields__.keys()
+        filtered_inference = {k: v for k, v in inference_dict.items() if k in inference_fields}
+        inference_config = InferenceConfig(**filtered_inference)
 
         return Config(
             model=model_config,
