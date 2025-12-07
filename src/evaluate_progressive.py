@@ -103,10 +103,22 @@ def evaluate_model_on_test_set(model_path: str, test_dataset_path: str):
     else:
         print(f"  ✅ YOLO format already exists ({len(existing_labels)} labels, {len(existing_images)} images)")
     
+    # Verify images and labels exist
+    image_files = list(yolo_images_dir.glob("*.jpg")) + list(yolo_images_dir.glob("*.png"))
+    label_files = list(yolo_labels.glob("*.txt"))
+    
+    if len(image_files) == 0:
+        raise FileNotFoundError(f"No images found in {yolo_images_dir}")
+    if len(label_files) == 0:
+        raise FileNotFoundError(f"No labels found in {yolo_labels}")
+    
+    print(f"  ✅ Found {len(image_files)} images and {len(label_files)} labels")
+    
     # Create YOLO dataset config
+    # YOLO expects: path/train/images/ and path/train/labels/
     yolo_config = {
         'path': str(test_path.absolute()),
-        'train': 'train',  # Relative to path
+        'train': 'train',  # Relative to path - YOLO will look for train/images/ and train/labels/
         'val': 'train',    # Use train for validation (it's a test set)
         'test': 'train',
         'names': {i: name for i, name in enumerate(class_names)},
